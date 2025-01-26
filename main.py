@@ -151,19 +151,41 @@ room_data = allot_group_captains(room_data, group_captains)
 room_data['Group Captain Name'] = room_data['Group Captain'].str.split('-').str[1]
 room_data['Group Captain ID'] = room_data['Group Captain'].str.split('-').str[0]
 
-mask = ~room_data['Room Captain'].str.contains(',', na=False)  
-room_data.loc[mask, 'Room Captain Name'] = room_data.loc[mask, 'Room Captain'].str.split('-').str[1]
-room_data.loc[mask, 'Room Captain ID'] = room_data.loc[mask, 'Room Captain'].str.split('-').str[0]
+rows_to_duplicate = room_data[room_data["Room"].isin(["F102","F105"])]
+duplicated_rows = rows_to_duplicate.copy()
+room_data.loc[rows_to_duplicate.index, "Room Captain"] = rows_to_duplicate["Room Captain"].str.split(",").str[0]
+duplicated_rows["Room Captain"] = rows_to_duplicate["Room Captain"].str.split(",").str[1]
+room_data_1 = pd.concat([room_data, duplicated_rows])
+
+room_data_1['Room Captain Name'] = room_data['Room Captain'].str.split('-').str[1]
+room_data_1['Room Captain ID'] = room_data['Room Captain'].str.split('-').str[0]
+
+room_captains.rename(columns={'ID':'Room Captain ID','Branch':'Room Captain Branch', 'Name':'Room Captain Name'},inplace = True)
+
+room_data_1["Room Captain ID"] = room_data_1["Room Captain ID"].astype(str)
+room_captains["Room Captain ID"] = room_captains["Room Captain ID"].astype(str)
+room_data_1["Room Captain ID"] = room_data_1["Room Captain ID"].str.strip()
+room_captains["Room Captain ID"] = room_captains["Room Captain ID"].str.strip()
+
+merged_df = room_data_1.merge(room_captains, on="Room Captain ID", how="inner")
+merged_df.drop(['SNO', 'Room Captain Name_y', 'Role',
+       'Mobile Number', 'Email', 'end_date'], axis =1,inplace = True)
+
+merged_df.rename(columns={'Room Captain Name_x':'Room Captain Name','Room Captain Branch_y':'Room Captain Branch'}, inplace=True)
+
+merged_df.drop(['Room Captain','Group Captain'],axis=1,inplace=True)
+
+
 
 
 # Save the final results
 if not os.path.exists(output_file_path):
     with pd.ExcelWriter(output_file_path, engine="openpyxl") as writer:
-        room_data.to_excel(writer, sheet_name="FINAL", index=False)
+        merged_df.to_excel(writer, sheet_name="FINAL", index=False)
         
 else:
     with pd.ExcelWriter(output_file_path, engine='openpyxl', mode='a', if_sheet_exists="replace") as writer:
-        room_data.to_excel(writer, sheet_name="FINAL", index=False)
+        merged_df.to_excel(writer, sheet_name="FINAL", index=False)
        
 
 print("Code Successfully Executed")
